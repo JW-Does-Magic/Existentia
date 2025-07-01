@@ -66,9 +66,30 @@ st.markdown("""
         height: 60px;
         font-size: 24px;
         cursor: pointer;
+        transition: all 0.3s ease;
     }
     .record-button:hover {
         background-color: #cc0000;
+        transform: scale(1.1);
+    }
+    .record-button.recording {
+        background-color: #ff0000;
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    .audio-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+    .audio-player {
+        margin: 1rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -266,7 +287,7 @@ Remember: You're a supportive companion for self-reflection, not a counselor or 
 def text_to_speech(text: str) -> Optional[bytes]:
     """Convert text to speech using ElevenLabs API"""
     try:
-        elevenlabs_key = st.secrets.get("ELEVENLABS_API_KEY", "")
+        elevenlabs_key = st.secrets.get("ELEVENLABS_API_KEY") or st.session_state.get('temp_elevenlabs_key', '')
         if not elevenlabs_key:
             return None
             
@@ -298,6 +319,20 @@ def text_to_speech(text: str) -> Optional[bytes]:
     except Exception as e:
         st.error(f"TTS Error: {str(e)}")
         return None
+
+def create_audio_player(audio_bytes: bytes, key: str = "audio_player") -> None:
+    """Create an audio player for the generated speech"""
+    if audio_bytes:
+        audio_b64 = base64.b64encode(audio_bytes).decode()
+        audio_html = f"""
+        <div class="audio-player">
+            <audio controls autoplay>
+                <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
+                Your browser does not support the audio element.
+            </audio>
+        </div>
+        """
+        st.markdown(audio_html, unsafe_allow_html=True)
 
 def speech_to_text(audio_data: bytes) -> str:
     """Convert speech to text using OpenAI Whisper"""
@@ -404,14 +439,104 @@ def show_main_interface():
             st.markdown(f'<div class="chat-message user-message"><strong>You:</strong> {message["content"]}</div>', unsafe_allow_html=True)
         else:
             st.markdown(f'<div class="chat-message ai-message"><strong>Companion:</strong> {message["content"]}</div>', unsafe_allow_html=True)
+            
+            # Add audio player for AI responses if TTS is enabled
+            if st.session_state.get('enable_tts', True) and len(st.session_state.conversation_history) > 0:
+                # Only generate audio for the most recent AI response to avoid overwhelming
+                if i == len(st.session_state.conversation_history) - 1 and message["role"] == "assistant":
+                    with st.spinner("Generating speech..."):
+                        audio_bytes = text_to_speech(message["content"])
+                        if audio_bytes:
+                            create_audio_player(audio_bytes, f"audio_{i}")
     
     # Input methods
     st.markdown("### Share Your Thoughts")
     
+    # Voice input section
+    st.markdown("#### 🎤 Voice Input")
+    
+    # JavaScript for voice recording
+    voice_html = """
+    <div class="audio-controls">
+        <button id="recordButton" class="record-button" onclick="toggleRecording()">🎤</button>
+        <span id="recordingStatus">Click to start recording</span>
+    </div>
+    <div id="audioPlayback"></div>
+    
+    <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+    
+    async function toggleRecording() {
+        const button = document.getElementById('recordButton');
+        const status = document.getElementById('recordingStatus');
+        
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Create audio player
+                    const audioPlayer = document.createElement('audio');
+                    audioPlayer.src = audioUrl;
+                    audioPlayer.controls = true;
+                    
+                    const playbackDiv = document.getElementById('audioPlayback');
+                    playbackDiv.innerHTML = '<p>Your recording:</p>';
+                    playbackDiv.appendChild(audioPlayer);
+                    
+                    // Convert to base64 and send to Streamlit (would need additional backend setup)
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        // This would require a custom Streamlit component to handle
+                        console.log('Audio recorded, would send to backend for transcription');
+                    };
+                    reader.readAsDataURL(audioBlob);
+                    
+                    audioChunks = [];
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                button.classList.add('recording');
+                button.innerHTML = '⏹️';
+                status.textContent = 'Recording... Click to stop';
+                
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                status.textContent = 'Microphone access denied. Please enable microphone permissions.';
+            }
+        } else {
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            isRecording = false;
+            button.classList.remove('recording');
+            button.innerHTML = '🎤';
+            status.textContent = 'Processing recording...';
+        }
+    }
+    </script>
+    """
+    
+    st.markdown(voice_html, unsafe_allow_html=True)
+    
+    # Note about voice input
+    st.info("🎤 **Voice Recording**: Click the microphone to record your thoughts. The recording will appear below for you to review. For now, you'll need to transcribe manually - full voice-to-text integration coming soon!")
+    
     # Text input
+    st.markdown("#### ✍️ Text Input")
     user_input = st.text_area("Type your thoughts...", height=100, key="text_input")
     
-    col1, col2 = st.columns([1, 1])
+    col1, col2, col3 = st.columns([1, 1, 1])
     
     with col1:
         if st.button("Send Message", use_container_width=True, disabled=not user_input.strip()):
@@ -419,8 +544,19 @@ def show_main_interface():
                 process_user_input(user_input.strip())
     
     with col2:
-        # Voice input placeholder
-        st.info("🎤 Voice input coming soon!")
+        # TTS Toggle
+        tts_enabled = st.checkbox("🔊 Voice responses", value=st.session_state.get('enable_tts', True), key="tts_toggle")
+        st.session_state.enable_tts = tts_enabled
+    
+    with col3:
+        if st.button("🎤 Voice Demo", help="Test text-to-speech with a sample message"):
+            demo_text = "Hello! This is how I sound. I'm here to help you explore life's deeper questions."
+            with st.spinner("Generating demo voice..."):
+                audio_bytes = text_to_speech(demo_text)
+                if audio_bytes:
+                    create_audio_player(audio_bytes, "demo_audio")
+                else:
+                    st.error("Voice synthesis not available. Please check your ElevenLabs API key.")
         # Note: Browser-based audio recording requires additional setup
         # For MVP, we'll focus on text input
     
@@ -463,6 +599,9 @@ def process_user_input(user_input: str):
         st.session_state.life_themes = extract_themes_from_conversation(
             st.session_state.conversation_history
         )
+    
+    # Clear the text input
+    st.session_state.text_input = ""
     
     st.rerun()
 
