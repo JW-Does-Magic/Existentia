@@ -185,7 +185,6 @@ def check_api_keys():
     """Check if required API keys are configured"""
     try:
         openai_key = st.secrets["OPENAI_API_KEY"]
-        elevenlabs_key = st.secrets["ELEVENLABS_API_KEY"] 
         
         # Initialize OpenAI client
         if 'openai_client' not in st.session_state:
@@ -193,7 +192,7 @@ def check_api_keys():
         
         return True
     except:
-        st.error("🔑 API keys not configured in Streamlit secrets. Please contact the app administrator.")
+        st.error("🔑 OpenAI API key not configured in Streamlit secrets. Please contact the app administrator.")
         st.stop()
         return False
 
@@ -286,36 +285,25 @@ Remember: You're a supportive companion for self-reflection, not a counselor or 
     except Exception as e:
         return f"I'm having trouble connecting right now. Could you try again? (Error: {str(e)})"
 
-def text_to_speech(text: str) -> Optional[bytes]:
-    """Convert text to speech using ElevenLabs API"""
+def text_to_speech(text: str, voice: str = None) -> Optional[bytes]:
+    """Convert text to speech using OpenAI TTS API"""
     try:
-        elevenlabs_key = st.secrets["ELEVENLABS_API_KEY"]
+        client = st.session_state.openai_client
         
-        url = "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM"  # Default voice
+        # Use selected voice or default to 'alloy'
+        selected_voice = voice or st.session_state.get('selected_voice', 'alloy')
         
-        headers = {
-            "Accept": "audio/mpeg",
-            "Content-Type": "application/json",
-            "xi-api-key": elevenlabs_key
-        }
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice=selected_voice,
+            input=text,
+            response_format="mp3"
+        )
         
-        data = {
-            "text": text,
-            "model_id": "eleven_monolingual_v1",
-            "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.5
-            }
-        }
+        return response.content
         
-        response = requests.post(url, json=data, headers=headers)
-        
-        if response.status_code == 200:
-            return response.content
-        else:
-            return None
-            
     except Exception as e:
+        st.error(f"Text-to-speech error: {str(e)}")
         return None
 
 def create_audio_player(audio_bytes: bytes, key: str = "audio_player") -> None:
@@ -445,6 +433,28 @@ def show_main_interface():
         month_info = MONTHLY_PROMPTS[st.session_state.current_month]
         st.markdown(f"**Month {st.session_state.current_month}:** {month_info['theme']}")
         st.markdown(month_info['description'])
+        
+        # Voice selection
+        st.markdown("### 🎙️ Voice Settings")
+        voice_options = {
+            "alloy": "Alloy (Balanced)",
+            "echo": "Echo (Male)",
+            "fable": "Fable (British)",
+            "onyx": "Onyx (Deep)",
+            "nova": "Nova (Young Female)",
+            "shimmer": "Shimmer (Soft)"
+        }
+        
+        selected_voice = st.selectbox(
+            "Choose AI voice:",
+            options=list(voice_options.keys()),
+            format_func=lambda x: voice_options[x],
+            index=0,
+            key="voice_selection"
+        )
+        
+        # Store voice selection
+        st.session_state.selected_voice = selected_voice
         
         st.markdown("### Emerging Themes")
         if st.session_state.life_themes:
