@@ -1,5 +1,5 @@
 import streamlit as st
-import openai
+from openai import OpenAI
 import requests
 import json
 import time
@@ -170,7 +170,8 @@ def check_api_keys():
         st.info("For development, you can add these in the sidebar settings.")
         return False
     
-    openai.api_key = openai_key
+    # Initialize OpenAI client
+    st.session_state.openai_client = OpenAI(api_key=openai_key)
     return True
 
 def detect_safety_concerns(text: str) -> bool:
@@ -250,7 +251,8 @@ Remember: You're a supportive companion for self-reflection, not a counselor or 
     messages.append({"role": "user", "content": user_input})
     
     try:
-        response = openai.ChatCompletion.create(
+        client = st.session_state.openai_client
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=messages,
             max_tokens=500,
@@ -304,8 +306,12 @@ def speech_to_text(audio_data: bytes) -> str:
         audio_file = io.BytesIO(audio_data)
         audio_file.name = "audio.wav"
         
-        response = openai.Audio.transcribe("whisper-1", audio_file)
-        return response["text"]
+        client = st.session_state.openai_client
+        response = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file
+        )
+        return response.text
         
     except Exception as e:
         return f"Speech recognition error: {str(e)}"
@@ -354,7 +360,7 @@ def show_api_setup():
             st.session_state.temp_openai_key = openai_key
             st.session_state.temp_elevenlabs_key = elevenlabs_key
             st.session_state.api_keys_set = True
-            openai.api_key = openai_key
+            st.session_state.openai_client = OpenAI(api_key=openai_key)
             st.success("API keys configured!")
             st.rerun()
         else:
@@ -472,7 +478,7 @@ def main():
             return
         else:
             # Use session-stored keys for development
-            openai.api_key = st.session_state.get('temp_openai_key', '')
+            st.session_state.openai_client = OpenAI(api_key=st.session_state.get('temp_openai_key', ''))
     
     # Show consent screen first
     if not st.session_state.consent_given:
