@@ -617,35 +617,111 @@ def show_main_interface():
     # Input methods
     st.markdown("### Share Your Thoughts")
     
-    # Voice input section - Simplified big button
+    # Voice input section - Functional big button
     st.markdown("### 🎤 Voice Conversation")
     
     # Initialize recording state
     if 'is_recording' not in st.session_state:
         st.session_state.is_recording = False
+    if 'audio_data' not in st.session_state:
+        st.session_state.audio_data = None
     
-    # Big Talk Button
-    button_text = "TALK" if not st.session_state.is_recording else "STOP & SEND"
-    button_class = "talk-btn" if not st.session_state.is_recording else "talk-btn recording"
-    
+    # Functional Talk Button with JavaScript
     st.markdown(f'''
     <div class="talk-button">
-        <button class="{button_class}" onclick="handleTalkButton()">
-            {button_text}
+        <button class="talk-btn" id="mainTalkButton" onclick="toggleRecording()">
+            <span id="buttonText">TALK</span>
         </button>
     </div>
     
+    <div id="recordingStatus" style="text-align: center; margin: 1rem 0; font-weight: bold; color: #666;">
+        Ready to listen
+    </div>
+    
+    <div id="audioPlayback" style="text-align: center; margin: 1rem 0;"></div>
+    
     <script>
-    function handleTalkButton() {{
-        // This would handle the talk button click
-        // For now, we'll use the Streamlit audio input below
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+    
+    async function toggleRecording() {{
+        const button = document.getElementById('mainTalkButton');
+        const buttonText = document.getElementById('buttonText');
+        const status = document.getElementById('recordingStatus');
+        
+        if (!isRecording) {{
+            try {{
+                const stream = await navigator.mediaDevices.getUserMedia({{ 
+                    audio: {{
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 44100
+                    }}
+                }});
+                
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (event) => {{
+                    audioChunks.push(event.data);
+                }};
+                
+                mediaRecorder.onstop = async () => {{
+                    const audioBlob = new Blob(audioChunks, {{ type: 'audio/wav' }});
+                    
+                    // Create download link for the audio (temporary solution)
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audioPlayer = document.createElement('audio');
+                    audioPlayer.src = audioUrl;
+                    audioPlayer.controls = true;
+                    audioPlayer.style.width = '100%';
+                    audioPlayer.style.maxWidth = '400px';
+                    audioPlayer.style.borderRadius = '25px';
+                    
+                    const playbackDiv = document.getElementById('audioPlayback');
+                    playbackDiv.innerHTML = '<p><strong>Your recording:</strong></p>';
+                    playbackDiv.appendChild(audioPlayer);
+                    
+                    // Add a note about using the Streamlit recorder below
+                    const note = document.createElement('p');
+                    note.innerHTML = '<em>⬇️ Use the recorder below to send your message to the AI</em>';
+                    note.style.color = '#2a5298';
+                    note.style.fontWeight = 'bold';
+                    playbackDiv.appendChild(note);
+                    
+                    audioChunks = [];
+                    status.textContent = 'Recording complete! Use the recorder below to send to AI.';
+                    status.style.color = '#2a5298';
+                }};
+                
+                mediaRecorder.start();
+                isRecording = true;
+                button.classList.add('recording');
+                buttonText.textContent = 'STOP & SEND';
+                status.textContent = 'Recording... Click STOP & SEND when finished';
+                status.style.color = '#f44336';
+                
+            }} catch (err) {{
+                console.error('Error accessing microphone:', err);
+                status.textContent = 'Microphone access denied. Please enable microphone permissions.';
+                status.style.color = '#f44336';
+            }}
+        }} else {{
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            isRecording = false;
+            button.classList.remove('recording');
+            buttonText.textContent = 'TALK';
+            status.textContent = 'Processing your recording...';
+            status.style.color = '#4caf50';
+        }}
     }}
     </script>
     ''', unsafe_allow_html=True)
     
-    # Streamlit audio input (hidden/styled)
-    st.markdown("**Click below to record your thoughts:**")
-    audio_input = st.audio_input("🎤 Record your message", key="audio_recorder", label_visibility="collapsed")
+    # Streamlit audio input (for actual processing) - make it more prominent
+    st.markdown("**Send your voice message to the AI:**")
+    audio_input = st.audio_input("🎤 Click to record and send to AI", key="audio_recorder")
     
     # Auto-process when audio is recorded
     if audio_input is not None:
