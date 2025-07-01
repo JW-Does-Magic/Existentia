@@ -183,17 +183,19 @@ MONTHLY_PROMPTS = {
 
 def check_api_keys():
     """Check if required API keys are configured"""
-    openai_key = st.secrets.get("OPENAI_API_KEY", "")
-    elevenlabs_key = st.secrets.get("ELEVENLABS_API_KEY", "")
-    
-    if not openai_key or not elevenlabs_key:
-        st.error("⚠️ API keys not configured. Please set OPENAI_API_KEY and ELEVENLABS_API_KEY in your Streamlit secrets.")
-        st.info("For development, you can add these in the sidebar settings.")
+    try:
+        openai_key = st.secrets["OPENAI_API_KEY"]
+        elevenlabs_key = st.secrets["ELEVENLABS_API_KEY"] 
+        
+        # Initialize OpenAI client
+        if 'openai_client' not in st.session_state:
+            st.session_state.openai_client = OpenAI(api_key=openai_key)
+        
+        return True
+    except:
+        st.error("🔑 API keys not configured in Streamlit secrets. Please contact the app administrator.")
+        st.stop()
         return False
-    
-    # Initialize OpenAI client
-    st.session_state.openai_client = OpenAI(api_key=openai_key)
-    return True
 
 def detect_safety_concerns(text: str) -> bool:
     """Detect potential safety concerns in user input"""
@@ -287,10 +289,8 @@ Remember: You're a supportive companion for self-reflection, not a counselor or 
 def text_to_speech(text: str) -> Optional[bytes]:
     """Convert text to speech using ElevenLabs API"""
     try:
-        elevenlabs_key = st.secrets.get("ELEVENLABS_API_KEY") or st.session_state.get('temp_elevenlabs_key', '')
-        if not elevenlabs_key:
-            return None
-            
+        elevenlabs_key = st.secrets["ELEVENLABS_API_KEY"]
+        
         url = "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM"  # Default voice
         
         headers = {
@@ -313,11 +313,9 @@ def text_to_speech(text: str) -> Optional[bytes]:
         if response.status_code == 200:
             return response.content
         else:
-            st.error(f"Text-to-speech error: {response.status_code}")
             return None
             
     except Exception as e:
-        st.error(f"TTS Error: {str(e)}")
         return None
 
 def create_audio_player(audio_bytes: bytes, key: str = "audio_player") -> None:
@@ -382,24 +380,41 @@ def show_consent_screen():
             st.rerun()
 
 def show_api_setup():
-    """Show API key setup for development"""
-    st.markdown("### API Configuration")
-    st.info("Enter your API keys to get started. These will be stored only for this session.")
+    """Show API key setup for development - only when needed"""
+    st.markdown("### 🔑 Quick Setup")
+    st.info("Just need to add your API keys once to get started!")
     
-    openai_key = st.text_input("OpenAI API Key", type="password", help="Get from https://platform.openai.com/api-keys")
-    elevenlabs_key = st.text_input("ElevenLabs API Key", type="password", help="Get from https://elevenlabs.io/")
+    with st.expander("🚀 Get Your Free API Keys", expanded=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**OpenAI API Key**")
+            st.markdown("1. Go to [platform.openai.com](https://platform.openai.com/api-keys)")
+            st.markdown("2. Sign up/login")
+            st.markdown("3. Create new secret key")
+            openai_key = st.text_input("OpenAI Key (starts with sk-)", type="password", key="openai_setup")
+        
+        with col2:
+            st.markdown("**ElevenLabs API Key**")
+            st.markdown("1. Go to [elevenlabs.io](https://elevenlabs.io)")
+            st.markdown("2. Sign up (free tier available)")
+            st.markdown("3. Go to Profile → API Keys")
+            elevenlabs_key = st.text_input("ElevenLabs Key", type="password", key="elevenlabs_setup")
     
-    if st.button("Save API Keys"):
-        if openai_key and elevenlabs_key:
-            # Store in session state for development
-            st.session_state.temp_openai_key = openai_key
-            st.session_state.temp_elevenlabs_key = elevenlabs_key
-            st.session_state.api_keys_set = True
-            st.session_state.openai_client = OpenAI(api_key=openai_key)
-            st.success("API keys configured!")
-            st.rerun()
-        else:
-            st.error("Please enter both API keys")
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("✨ Start Using App", use_container_width=True, type="primary"):
+            if openai_key and elevenlabs_key:
+                # Store in session state
+                st.session_state.temp_openai_key = openai_key
+                st.session_state.temp_elevenlabs_key = elevenlabs_key
+                st.session_state.api_keys_set = True
+                st.session_state.openai_client = OpenAI(api_key=openai_key)
+                st.success("🎉 All set! Your app is ready.")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("Please enter both API keys to continue")
 
 def show_main_interface():
     """Show the main chat interface"""
@@ -534,7 +549,7 @@ def show_main_interface():
     
     # Text input
     st.markdown("#### ✍️ Text Input")
-    user_input = st.text_area("Type your thoughts...", height=100, key="text_input")
+    user_input = st.text_area("Type your thoughts...", height=100, key="text_input", value="")
     
     col1, col2, col3 = st.columns([1, 1, 1])
     
@@ -600,24 +615,12 @@ def process_user_input(user_input: str):
             st.session_state.conversation_history
         )
     
-    # Clear the text input
-    st.session_state.text_input = ""
-    
     st.rerun()
 
 # Main App Logic
 def main():
     # Check API configuration
     api_keys_configured = check_api_keys()
-    
-    # Development mode: allow manual API key entry
-    if not api_keys_configured:
-        if not st.session_state.get('api_keys_set', False):
-            show_api_setup()
-            return
-        else:
-            # Use session-stored keys for development
-            st.session_state.openai_client = OpenAI(api_key=st.session_state.get('temp_openai_key', ''))
     
     # Show consent screen first
     if not st.session_state.consent_given:
