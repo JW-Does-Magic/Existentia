@@ -12,84 +12,188 @@ import base64
 # Page configuration
 st.set_page_config(
     page_title="Existential Companion",
-    page_icon="🌱",
-    layout="wide",
+    page_icon="🤖",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
 # Custom CSS for better UX
 st.markdown("""
 <style>
+    /* Main container max width */
+    .main .block-container {
+        max-width: 1200px;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
     .main-header {
         text-align: center;
         padding: 2rem 0;
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         color: white;
-        border-radius: 10px;
+        border-radius: 15px;
         margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
-    .chat-message {
-        padding: 1rem;
-        margin: 1rem 0;
+    
+    .hero-image {
+        width: 100%;
+        max-width: 600px;
+        height: auto;
         border-radius: 10px;
-        border-left: 4px solid #2a5298;
-        background-color: #f8f9fa;
+        margin: 1rem 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
+    
+    .chat-message {
+        padding: 1.5rem;
+        margin: 1rem 0;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
     .user-message {
-        background-color: #e3f2fd;
-        border-left-color: #1976d2;
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-left: 4px solid #1976d2;
+        margin-left: 2rem;
     }
+    
     .ai-message {
-        background-color: #f3e5f5;
-        border-left-color: #7b1fa2;
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        border-left: 4px solid #7b1fa2;
+        margin-right: 2rem;
     }
+    
     .theme-box {
-        background-color: #fff3e0;
-        padding: 1rem;
-        border-radius: 8px;
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
         border-left: 4px solid #ff9800;
         margin: 1rem 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
+    
     .warning-box {
-        background-color: #ffebee;
-        padding: 1rem;
-        border-radius: 8px;
+        background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
         border-left: 4px solid #f44336;
         margin: 1rem 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    .record-button {
-        background-color: #ff4444;
+    
+    /* Big Talk Button */
+    .talk-button {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 2rem 0;
+    }
+    
+    .talk-btn {
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
         color: white;
         border: none;
-        border-radius: 50%;
-        width: 60px;
-        height: 60px;
+        border-radius: 50px;
+        padding: 20px 40px;
         font-size: 24px;
+        font-weight: bold;
         cursor: pointer;
         transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        min-width: 200px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
-    .record-button:hover {
-        background-color: #cc0000;
-        transform: scale(1.1);
+    
+    .talk-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
     }
-    .record-button.recording {
-        background-color: #ff0000;
-        animation: pulse 1s infinite;
+    
+    .talk-btn.recording {
+        background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
+        animation: pulse 1.5s infinite;
     }
+    
+    .talk-btn.recording:hover {
+        box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
+    }
+    
     @keyframes pulse {
         0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
+        50% { transform: scale(1.05); }
         100% { transform: scale(1); }
     }
-    .audio-controls {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-        margin: 1rem 0;
-    }
+    
+    /* Audio player styling */
     .audio-player {
         margin: 1rem 0;
+        text-align: center;
+    }
+    
+    .audio-player audio {
+        width: 100%;
+        max-width: 400px;
+        border-radius: 25px;
+    }
+    
+    /* Input styling */
+    .stTextArea textarea {
+        border-radius: 15px;
+        border: 2px solid #e0e0e0;
+        font-size: 16px;
+        padding: 15px;
+    }
+    
+    .stTextArea textarea:focus {
+        border-color: #2a5298;
+        box-shadow: 0 0 10px rgba(42, 82, 152, 0.1);
+    }
+    
+    /* Button styling */
+    .stButton button {
+        border-radius: 25px;
+        border: none;
+        padding: 12px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    /* Hide Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        
+        .talk-btn {
+            font-size: 20px;
+            padding: 15px 30px;
+            min-width: 150px;
+        }
+        
+        .user-message, .ai-message {
+            margin-left: 0;
+            margin-right: 0;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -365,7 +469,14 @@ def process_audio_input(audio_bytes: bytes):
 
 def show_consent_screen():
     """Show initial consent and onboarding"""
-    st.markdown('<div class="main-header"><h1>🌱 Existential Companion</h1><p>A space for authentic self-reflection and meaning-making</p></div>', unsafe_allow_html=True)
+    st.markdown('''
+    <div class="main-header">
+        <h1>Existential Companion</h1>
+        <p>A space for authentic self-reflection and meaning-making</p>
+        <img src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=984,h=487,fit=crop/ALpnwqvBGysjXvjO/ai-agents-AVL7OZZxZ0SlROGa.png" 
+             class="hero-image" alt="AI Companion" />
+    </div>
+    ''', unsafe_allow_html=True)
     
     st.markdown("""
     ### Welcome to Your Reflective Journey
@@ -432,7 +543,12 @@ def show_main_interface():
     """Show the main chat interface"""
     
     # Header
-    st.markdown('<div class="main-header"><h1>🌱 Existential Companion</h1></div>', unsafe_allow_html=True)
+    st.markdown('''
+    <div class="main-header">
+        <h1>Existential Companion</h1>
+        <p>Your AI partner for life's deeper questions</p>
+    </div>
+    ''', unsafe_allow_html=True)
     
     # Sidebar with current month info and themes
     with st.sidebar:
@@ -501,12 +617,35 @@ def show_main_interface():
     # Input methods
     st.markdown("### Share Your Thoughts")
     
-    # Voice input section - Auto-submit on recording stop
-    st.markdown("#### 🎤 Voice Input")
+    # Voice input section - Simplified big button
+    st.markdown("### 🎤 Voice Conversation")
     
-    # Primary audio recorder with auto-submit
-    st.markdown("**Speak your thoughts** (auto-sends when you stop recording):")
-    audio_input = st.audio_input("🎤 Click to record, click again to stop & send automatically", key="audio_recorder")
+    # Initialize recording state
+    if 'is_recording' not in st.session_state:
+        st.session_state.is_recording = False
+    
+    # Big Talk Button
+    button_text = "TALK" if not st.session_state.is_recording else "STOP & SEND"
+    button_class = "talk-btn" if not st.session_state.is_recording else "talk-btn recording"
+    
+    st.markdown(f'''
+    <div class="talk-button">
+        <button class="{button_class}" onclick="handleTalkButton()">
+            {button_text}
+        </button>
+    </div>
+    
+    <script>
+    function handleTalkButton() {{
+        // This would handle the talk button click
+        // For now, we'll use the Streamlit audio input below
+    }}
+    </script>
+    ''', unsafe_allow_html=True)
+    
+    # Streamlit audio input (hidden/styled)
+    st.markdown("**Click below to record your thoughts:**")
+    audio_input = st.audio_input("🎤 Record your message", key="audio_recorder", label_visibility="collapsed")
     
     # Auto-process when audio is recorded
     if audio_input is not None:
@@ -527,14 +666,20 @@ def show_main_interface():
     st.markdown("---")
     
     # Text input
-    st.markdown("#### ✍️ Text Input")
-    st.markdown("*Or type your thoughts if you prefer:*")
-    user_input = st.text_area("Type your thoughts here...", height=100, key="text_input", value="", placeholder="What's on your mind today?")
+    st.markdown("### ✍️ Text Conversation")
+    st.markdown("*Prefer to type? Share your thoughts here:*")
+    user_input = st.text_area(
+        "What's on your mind today?", 
+        height=120, 
+        key="text_input", 
+        value="", 
+        placeholder="Type your thoughts, questions, or reflections here..."
+    )
     
-    col1, col2, col3 = st.columns([1, 1, 1])
+    col1, col2, col3 = st.columns([1, 2, 1])
     
-    with col1:
-        if st.button("✍️ Send Text Message", use_container_width=True, disabled=not user_input.strip()):
+    with col2:
+        if st.button("💬 Send Message", use_container_width=True, disabled=not user_input.strip(), type="primary"):
             if user_input.strip():
                 process_user_input(user_input.strip())
     
