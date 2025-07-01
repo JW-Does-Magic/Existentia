@@ -275,9 +275,9 @@ Remember: You're a supportive companion for self-reflection, not a counselor or 
     try:
         client = st.session_state.openai_client
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",  # Much faster than gpt-4, still very good quality
             messages=messages,
-            max_tokens=500,
+            max_tokens=400,  # Slightly shorter responses for speed
             temperature=0.7
         )
         return response.choices[0].message.content.strip()
@@ -294,10 +294,11 @@ def text_to_speech(text: str, voice: str = None) -> Optional[bytes]:
         selected_voice = voice or st.session_state.get('selected_voice', 'alloy')
         
         response = client.audio.speech.create(
-            model="tts-1",
+            model="tts-1-hd",  # Faster than tts-1, still high quality
             voice=selected_voice,
             input=text,
-            response_format="mp3"
+            response_format="mp3",
+            speed=1.1  # Slightly faster speech
         )
         
         return response.content
@@ -344,15 +345,18 @@ def process_audio_input(audio_bytes: bytes):
     if not audio_bytes:
         return
     
-    # Transcribe with Whisper
-    transcribed_text = speech_to_text(audio_bytes)
+    # Step 1: Transcribe with clear progress
+    with st.spinner("🎤 Listening... (transcribing your voice)"):
+        transcribed_text = speech_to_text(audio_bytes)
     
     if transcribed_text.strip():
-        # Show what was transcribed with a subtle confirmation
+        # Show what was transcribed immediately
         st.info(f"💭 **You said:** \"{transcribed_text}\"")
         
-        # Process the transcribed text as regular input
-        process_user_input(transcribed_text.strip())
+        # Step 2: Process with AI - show what's happening
+        with st.spinner("🤔 Thinking about your message..."):
+            # Process the transcribed text as regular input
+            process_user_input(transcribed_text.strip())
     else:
         st.error("🎤 Sorry, I couldn't understand what you said. Please try recording again.")
         st.rerun()
@@ -570,8 +574,8 @@ def process_user_input(user_input: str):
         "timestamp": datetime.datetime.now().isoformat()
     })
     
-    # Generate AI response
-    with st.spinner("Thinking..."):
+    # Generate AI response with progress indicator
+    with st.spinner("💭 Crafting a thoughtful response..."):
         ai_response = get_ai_response(
             user_input, 
             st.session_state.conversation_history[:-1],  # Don't include the message we just added
