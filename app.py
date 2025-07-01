@@ -494,11 +494,12 @@ def show_main_interface():
     # Input methods
     st.markdown("### Share Your Thoughts")
     
-    # Voice input section
+    # Voice input section - Main functional recorder
     st.markdown("#### 🎤 Voice Input")
     
-    # Audio recorder using st.audio_input (Streamlit's built-in audio recorder)
-    audio_input = st.audio_input("Record your thoughts", key="audio_recorder")
+    # Primary audio recorder using Streamlit's built-in feature
+    st.markdown("**Speak your thoughts:**")
+    audio_input = st.audio_input("Click to record, then click again to stop", key="audio_recorder")
     
     if audio_input is not None:
         # Display audio player for the recorded input
@@ -506,119 +507,17 @@ def show_main_interface():
         
         col1, col2 = st.columns([1, 1])
         with col1:
-            if st.button("🎤 Transcribe & Send", use_container_width=True, type="primary"):
+            if st.button("🎤 Send Voice Message", use_container_width=True, type="primary"):
                 audio_bytes = audio_input.read()
                 process_audio_input(audio_bytes)
         
         with col2:
-            if st.button("🗑️ Clear Recording", use_container_width=True):
+            if st.button("🗑️ Record Again", use_container_width=True):
                 st.rerun()
+    else:
+        st.info("👆 Click the recording button above to start speaking")
     
-    # Alternative: JavaScript-based recorder for more control
     st.markdown("---")
-    st.markdown("#### 🎙️ Advanced Voice Input")
-    
-    # JavaScript for voice recording with OpenAI-style UX
-    voice_html = """
-    <div class="audio-controls">
-        <button id="recordButton" class="record-button" onclick="toggleRecording()">🎤</button>
-        <span id="recordingStatus">Click to start recording</span>
-    </div>
-    <div id="audioPlayback"></div>
-    <div id="transcriptionResult"></div>
-    
-    <script>
-    let mediaRecorder;
-    let audioChunks = [];
-    let isRecording = false;
-    
-    async function toggleRecording() {
-        const button = document.getElementById('recordButton');
-        const status = document.getElementById('recordingStatus');
-        
-        if (!isRecording) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        sampleRate: 44100
-                    }
-                });
-                
-                mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'audio/webm;codecs=opus'
-                });
-                
-                mediaRecorder.ondataavailable = (event) => {
-                    audioChunks.push(event.data);
-                };
-                
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    
-                    // Create audio player
-                    const audioPlayer = document.createElement('audio');
-                    audioPlayer.src = audioUrl;
-                    audioPlayer.controls = true;
-                    audioPlayer.style.width = '100%';
-                    audioPlayer.style.marginTop = '10px';
-                    
-                    const playbackDiv = document.getElementById('audioPlayback');
-                    playbackDiv.innerHTML = '<p><strong>Your recording:</strong></p>';
-                    playbackDiv.appendChild(audioPlayer);
-                    
-                    // Add transcription button
-                    const transcribeBtn = document.createElement('button');
-                    transcribeBtn.textContent = '🎤 Transcribe with Whisper';
-                    transcribeBtn.style.cssText = 'margin-top: 10px; padding: 8px 16px; background: #2a5298; color: white; border: none; border-radius: 4px; cursor: pointer;';
-                    transcribeBtn.onclick = () => {
-                        // Convert blob to base64 and send to Streamlit
-                        const reader = new FileReader();
-                        reader.onloadend = function() {
-                            const base64Audio = reader.result.split(',')[1];
-                            // This would trigger Streamlit to process the audio
-                            // For now, show a message about the integration
-                            document.getElementById('transcriptionResult').innerHTML = 
-                                '<p style="color: #2a5298; font-weight: bold;">🎤 Audio recorded! Use the "Record your thoughts" feature above for full Whisper integration.</p>';
-                        };
-                        reader.readAsDataURL(audioBlob);
-                    };
-                    playbackDiv.appendChild(transcribeBtn);
-                    
-                    audioChunks = [];
-                };
-                
-                mediaRecorder.start();
-                isRecording = true;
-                button.classList.add('recording');
-                button.innerHTML = '⏹️';
-                status.textContent = 'Recording... Click to stop';
-                status.style.color = '#ff0000';
-                
-            } catch (err) {
-                console.error('Error accessing microphone:', err);
-                status.textContent = 'Microphone access denied. Please enable microphone permissions and refresh.';
-                status.style.color = '#ff0000';
-            }
-        } else {
-            mediaRecorder.stop();
-            mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            isRecording = false;
-            button.classList.remove('recording');
-            button.innerHTML = '🎤';
-            status.textContent = 'Processing recording...';
-            status.style.color = '#2a5298';
-        }
-    }
-    </script>
-    """
-    
-    st.markdown(voice_html, unsafe_allow_html=True)
-    
-    # Instructions
-    st.info("💡 **Voice Tips**: Use the 'Record your thoughts' feature above for seamless Whisper transcription, or try the advanced recorder for more control.")
     
     # Text input
     st.markdown("#### ✍️ Text Input")
