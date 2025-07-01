@@ -617,111 +617,88 @@ def show_main_interface():
     # Input methods
     st.markdown("### Share Your Thoughts")
     
-    # Voice input section - Functional big button
+    # Voice input section - Style the Streamlit recorder to look like the big button
     st.markdown("### 🎤 Voice Conversation")
     
-    # Initialize recording state
-    if 'is_recording' not in st.session_state:
-        st.session_state.is_recording = False
-    if 'audio_data' not in st.session_state:
-        st.session_state.audio_data = None
+    # Custom CSS to style the Streamlit audio input like a big button
+    st.markdown("""
+    <style>
+    /* Hide the default audio input styling and create custom button look */
+    .stAudioInput > div > div > div > button {
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 50px !important;
+        padding: 20px 40px !important;
+        font-size: 24px !important;
+        font-weight: bold !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3) !important;
+        min-width: 200px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        width: 100% !important;
+        max-width: 300px !important;
+        margin: 0 auto !important;
+        display: block !important;
+    }
     
-    # Functional Talk Button with JavaScript
-    st.markdown(f'''
-    <div class="talk-button">
-        <button class="talk-btn" id="mainTalkButton" onclick="toggleRecording()">
-            <span id="buttonText">TALK</span>
-        </button>
+    .stAudioInput > div > div > div > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4) !important;
+    }
+    
+    .stAudioInput > div > div > div > button:active,
+    .stAudioInput > div > div > div > button[aria-pressed="true"] {
+        background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%) !important;
+        box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3) !important;
+        animation: pulse 1.5s infinite !important;
+    }
+    
+    .stAudioInput > div > div > div > button[aria-pressed="true"]:hover {
+        box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4) !important;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    /* Center the audio input */
+    .stAudioInput {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin: 2rem 0 !important;
+    }
+    
+    /* Hide the label */
+    .stAudioInput > label {
+        display: none !important;
+    }
+    
+    /* Style the recording indicator */
+    .stAudioInput > div > div > div > div {
+        text-align: center !important;
+        margin-top: 1rem !important;
+        font-weight: bold !important;
+        color: #666 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Instructions
+    st.markdown("""
+    <div style="text-align: center; margin: 1rem 0; font-size: 18px; color: #666;">
+        <strong>Click the button below to start talking</strong><br>
+        <em>Click again to stop and send your message</em>
     </div>
+    """, unsafe_allow_html=True)
     
-    <div id="recordingStatus" style="text-align: center; margin: 1rem 0; font-weight: bold; color: #666;">
-        Ready to listen
-    </div>
-    
-    <div id="audioPlayback" style="text-align: center; margin: 1rem 0;"></div>
-    
-    <script>
-    let mediaRecorder;
-    let audioChunks = [];
-    let isRecording = false;
-    
-    async function toggleRecording() {{
-        const button = document.getElementById('mainTalkButton');
-        const buttonText = document.getElementById('buttonText');
-        const status = document.getElementById('recordingStatus');
-        
-        if (!isRecording) {{
-            try {{
-                const stream = await navigator.mediaDevices.getUserMedia({{ 
-                    audio: {{
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        sampleRate: 44100
-                    }}
-                }});
-                
-                mediaRecorder = new MediaRecorder(stream);
-                
-                mediaRecorder.ondataavailable = (event) => {{
-                    audioChunks.push(event.data);
-                }};
-                
-                mediaRecorder.onstop = async () => {{
-                    const audioBlob = new Blob(audioChunks, {{ type: 'audio/wav' }});
-                    
-                    // Create download link for the audio (temporary solution)
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    const audioPlayer = document.createElement('audio');
-                    audioPlayer.src = audioUrl;
-                    audioPlayer.controls = true;
-                    audioPlayer.style.width = '100%';
-                    audioPlayer.style.maxWidth = '400px';
-                    audioPlayer.style.borderRadius = '25px';
-                    
-                    const playbackDiv = document.getElementById('audioPlayback');
-                    playbackDiv.innerHTML = '<p><strong>Your recording:</strong></p>';
-                    playbackDiv.appendChild(audioPlayer);
-                    
-                    // Add a note about using the Streamlit recorder below
-                    const note = document.createElement('p');
-                    note.innerHTML = '<em>⬇️ Use the recorder below to send your message to the AI</em>';
-                    note.style.color = '#2a5298';
-                    note.style.fontWeight = 'bold';
-                    playbackDiv.appendChild(note);
-                    
-                    audioChunks = [];
-                    status.textContent = 'Recording complete! Use the recorder below to send to AI.';
-                    status.style.color = '#2a5298';
-                }};
-                
-                mediaRecorder.start();
-                isRecording = true;
-                button.classList.add('recording');
-                buttonText.textContent = 'STOP & SEND';
-                status.textContent = 'Recording... Click STOP & SEND when finished';
-                status.style.color = '#f44336';
-                
-            }} catch (err) {{
-                console.error('Error accessing microphone:', err);
-                status.textContent = 'Microphone access denied. Please enable microphone permissions.';
-                status.style.color = '#f44336';
-            }}
-        }} else {{
-            mediaRecorder.stop();
-            mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            isRecording = false;
-            button.classList.remove('recording');
-            buttonText.textContent = 'TALK';
-            status.textContent = 'Processing your recording...';
-            status.style.color = '#4caf50';
-        }}
-    }}
-    </script>
-    ''', unsafe_allow_html=True)
-    
-    # Streamlit audio input (for actual processing) - make it more prominent
-    st.markdown("**Send your voice message to the AI:**")
-    audio_input = st.audio_input("🎤 Click to record and send to AI", key="audio_recorder")
+    # The actual functional audio input (now styled like a big button)
+    audio_input = st.audio_input("🎤 TALK", key="audio_recorder")
     
     # Auto-process when audio is recorded
     if audio_input is not None:
@@ -729,13 +706,21 @@ def show_main_interface():
         if 'last_audio_input' not in st.session_state or st.session_state.last_audio_input != audio_input:
             st.session_state.last_audio_input = audio_input
             
+            # Show immediate feedback
+            st.markdown("""
+            <div style="text-align: center; margin: 1rem 0;">
+                <div style="background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%); 
+                           padding: 1rem; border-radius: 10px; border-left: 4px solid #4caf50;">
+                    <strong>🎤 Voice message received!</strong><br>
+                    <em>Processing your message...</em>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
             # Auto-submit the audio immediately
-            with st.spinner("🎤 Processing your voice message..."):
+            with st.spinner("🤖 AI is listening and thinking..."):
                 audio_bytes = audio_input.read()
                 if audio_bytes:
-                    # Show brief confirmation
-                    st.success("🎤 Voice message received! Processing...")
-                    
                     # Process the audio
                     process_audio_input(audio_bytes)
     
