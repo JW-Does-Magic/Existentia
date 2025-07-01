@@ -344,15 +344,18 @@ def process_audio_input(audio_bytes: bytes):
     if not audio_bytes:
         return
     
-    with st.spinner("🎤 Transcribing your message..."):
-        transcribed_text = speech_to_text(audio_bytes)
-        
+    # Transcribe with Whisper
+    transcribed_text = speech_to_text(audio_bytes)
+    
     if transcribed_text.strip():
-        st.success(f"💬 **You said:** {transcribed_text}")
+        # Show what was transcribed with a subtle confirmation
+        st.info(f"💭 **You said:** \"{transcribed_text}\"")
+        
         # Process the transcribed text as regular input
         process_user_input(transcribed_text.strip())
     else:
-        st.error("Sorry, I couldn't understand what you said. Please try again.")
+        st.error("🎤 Sorry, I couldn't understand what you said. Please try recording again.")
+        st.rerun()
 
 # Main App Interface
 
@@ -494,39 +497,40 @@ def show_main_interface():
     # Input methods
     st.markdown("### Share Your Thoughts")
     
-    # Voice input section - Main functional recorder
+    # Voice input section - Auto-submit on recording stop
     st.markdown("#### 🎤 Voice Input")
     
-    # Primary audio recorder using Streamlit's built-in feature
-    st.markdown("**Speak your thoughts:**")
-    audio_input = st.audio_input("Click to record, then click again to stop", key="audio_recorder")
+    # Primary audio recorder with auto-submit
+    st.markdown("**Speak your thoughts** (auto-sends when you stop recording):")
+    audio_input = st.audio_input("🎤 Click to record, click again to stop & send automatically", key="audio_recorder")
     
+    # Auto-process when audio is recorded
     if audio_input is not None:
-        # Display audio player for the recorded input
-        st.audio(audio_input, format="audio/wav")
-        
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            if st.button("🎤 Send Voice Message", use_container_width=True, type="primary"):
+        # Check if this is a new recording by comparing with previous state
+        if 'last_audio_input' not in st.session_state or st.session_state.last_audio_input != audio_input:
+            st.session_state.last_audio_input = audio_input
+            
+            # Auto-submit the audio immediately
+            with st.spinner("🎤 Processing your voice message..."):
                 audio_bytes = audio_input.read()
-                process_audio_input(audio_bytes)
-        
-        with col2:
-            if st.button("🗑️ Record Again", use_container_width=True):
-                st.rerun()
-    else:
-        st.info("👆 Click the recording button above to start speaking")
+                if audio_bytes:
+                    # Show brief confirmation
+                    st.success("🎤 Voice message received! Processing...")
+                    
+                    # Process the audio
+                    process_audio_input(audio_bytes)
     
     st.markdown("---")
     
     # Text input
     st.markdown("#### ✍️ Text Input")
-    user_input = st.text_area("Type your thoughts...", height=100, key="text_input", value="")
+    st.markdown("*Or type your thoughts if you prefer:*")
+    user_input = st.text_area("Type your thoughts here...", height=100, key="text_input", value="", placeholder="What's on your mind today?")
     
     col1, col2, col3 = st.columns([1, 1, 1])
     
     with col1:
-        if st.button("Send Message", use_container_width=True, disabled=not user_input.strip()):
+        if st.button("✍️ Send Text Message", use_container_width=True, disabled=not user_input.strip()):
             if user_input.strip():
                 process_user_input(user_input.strip())
     
